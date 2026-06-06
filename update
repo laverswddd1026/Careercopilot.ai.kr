@@ -573,7 +573,7 @@
                 const uid = window.appState.userId;
 
                 // 1. 프로필 DB 실시간 연동
-                const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile');
+                const profileRef = doc(db, 'artifacts', appId, 'users', uid);
                 onSnapshot(profileRef, (docSnap) => {
                     if (docSnap.exists() && docSnap.data().experience) {
                         document.getElementById('input-profile-exp').value = docSnap.data().experience;
@@ -621,10 +621,10 @@
                 
                 btn.innerText = "DB 저장 중...";
                 try {
-                    await setDoc(doc(db, 'artifacts', appId, 'users', window.appState.userId, 'profile'), {
+                    await setDoc(doc(db, 'artifacts', appId, 'users', window.appState.userId), {
                         experience: exp,
                         updatedAt: Date.now()
-                    });
+                    , {merge: true });
                     btn.innerText = "저장 완료 ✓";
                     setTimeout(() => btn.innerText = "프로필 DB에 저장", 2000);
                 } catch (e) {
