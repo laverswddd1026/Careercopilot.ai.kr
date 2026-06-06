@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head> 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Career Copilot - AI 커리어 파트너</title>
+    
+    <!-- Chosen Palette: Warm Neutrals & Emerald (Primary: #059669, Background: #f8fafc, Surface: #ffffff, Text: #334155) -->
+    <!-- Application Structure Plan: 
+      1. Dashboard (대시보드): Provides an overview of the user's job search progress. Features Chart.js visualizations for application statuses and activity, plus a functional Kanban board for tracking (Phase 4 of project plan). Chosen to give users immediate value and a sense of progress.
+      2. Generation Workspace (맞춤 생성): The core feature (Phase 2 & 3). A split-view layout. Left side takes target company details (JD). Right side dynamically generates and displays Cover Letter, Resume, and Interview Qs. Includes a mock "AI Generation" flow to demonstrate interactivity.
+      3. Profile (내 정보): A simple form view representing Phase 1, where users input base data that the AI uses as context.
+      Flow: User checks Dashboard -> Goes to Profile to ensure data is set -> Uses Workspace to generate tailored docs for a new job -> Generated job automatically appears in Dashboard Tracker.
+    -->
+    <!-- Visualization & Content Choices:
+      1. Application Status Doughnut Chart -> Goal: Inform/Organize -> Shows the distribution of current applications across stages -> Chart.js Canvas. Justification: Quick visual breakdown of funnel.
+      2. Weekly Activity Bar Chart -> Goal: Inform/Trend -> Shows generations/applications over the last 7 days -> Chart.js Canvas. Justification: Encourages consistent user engagement.
+      3. Kanban Board -> Goal: Organize/Track -> Interactive pipeline for job applications -> HTML/Tailwind + JS click interaction. Justification: Best practice for tracking multiple items across statuses. No SVG used.
+      4. Split-pane Generation View -> Goal: Organize/Compare -> Left input, right output -> HTML Grid + JS Tabs. Justification: Allows user to see input context and output results simultaneously without scrolling away.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            color: #334155; /* slate-700 */
+        }
+
+        /* Chart Container Strict Styling */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+            max-height: 300px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Loading Animation */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #059669; /* emerald-600 */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Kanban Card Transition */
+        .kanban-card {
+            transition: all 0.2s ease;
+        }
+        .kanban-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669', /* Main Brand Color */
+                            700: '#047857',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <nav class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between h-full flex-shrink-0 z-10 hidden md:flex">
+        <div>
+            <div class="h-16 flex items-center px-6 border-b border-slate-100">
+                <span class="text-xl font-bold text-primary-600">🧭 Career Copilot</span>
+            </div>
+            <div class="p-4 space-y-1">
+                <p class="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 mt-4">Menu</p>
+                <button onclick="app.switchView('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center px-3 py-2 text-sm font-medium rounded-md bg-primary-50 text-primary-600 transition-colors">
+                    <span class="mr-3 text-lg">📊</span> 커리어 대시보드
+                </button>
+                <button onclick="app.switchView('workspace')" id="nav-workspace" class="nav-btn w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-colors">
+                    <span class="mr-3 text-lg">✨</span> AI 맞춤 생성
+                </button>
+                <button onclick="app.switchView('profile')" id="nav-profile" class="nav-btn w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 transition-colors">
+                    <span class="mr-3 text-lg">👤</span> 내 프로필
+                </button>
+            </div>
+        </div>
+        <div class="p-4 border-t border-slate-100">
+            <div class="flex items-center">
+                <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold">홍</div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-slate-700">홍길동</p>
+                    <p class="text-xs text-slate-500">AI 마케터 준비중</p>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        
+        <!-- Mobile Header -->
+        <header class="md:hidden h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 flex-shrink-0">
+            <span class="text-lg font-bold text-primary-600">🧭 Career Copilot</span>
+            <div class="flex space-x-2">
+                <button onclick="app.switchView('dashboard')" class="text-xl">📊</button>
+                <button onclick="app.switchView('workspace')" class="text-xl">✨</button>
+                <button onclick="app.switchView('profile')" class="text-xl">👤</button>
+            </div>
+        </header>
+
+        <!-- VIEW 1: Dashboard & Tracker -->
+        <div id="view-dashboard" class="view-section flex-1 overflow-y-auto p-4 md:p-8">
+            <div class="max-w-6xl mx-auto space-y-6">
+                
+                <header class="mb-8">
+                    <h1 class="text-2xl font-bold text-slate-800">커리어 대시보드</h1>
+                    <p class="text-sm text-slate-500 mt-1">현재까지의 지원 현황과 AI 생성 히스토리를 한눈에 파악하고 관리하세요.</p>
+                </header>
+
+                <!-- Stats & Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Key Stats -->
+                    <div class="grid grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 font-medium">총 지원</p>
+                                <p class="text-2xl font-bold text-slate-800 mt-1" id="stat-total">12</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 text-lg">🚀</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 font-medium">서류 합격률</p>
+                                <p class="text-2xl font-bold text-slate-800 mt-1">41%</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 text-lg">📄</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 font-medium">최종 합격률</p>
+                                <p class="text-2xl font-bold text-slate-800 mt-1" id="stat-final-rate">8%</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 text-lg">🏆</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 font-medium">AI 생성</p>
+                                <p class="text-2xl font-bold text-slate-800 mt-1" id="stat-generated">36</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-500 text-lg">✨</div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <h3 class="text-base font-semibold text-slate-800 mb-4">전형 결과 현황 (합불 지표)</h3>
+                        <div class="chart-container">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                        <h3 class="text-base font-semibold text-slate-800 mb-4">주간 활동 추이</h3>
+                        <div class="chart-container">
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kanban Tracker -->
+                <div class="mt-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center">
+                            <span class="mr-2">📋</span> 채용 전형 트래커
+                        </h2>
+                        <button onclick="app.switchView('workspace')" class="text-sm bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-50 transition">
+                            + 새 지원 추가
+                        </button>
+                    </div>
+                    
+                    <div class="flex flex-nowrap overflow-x-auto gap-4 pb-4 snap-x" id="kanban-board">
+                        <!-- Kanban columns will be rendered here by JS -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- VIEW 2: AI Generation Workspace -->
+        <div id="view-workspace" class="view-section hidden flex-1 overflow-hidden flex flex-col">
+            <header class="px-6 py-4 border-b border-slate-200 bg-white flex-shrink-0 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800">✨ AI 맞춤 생성 워크스페이스</h1>
+                    <p class="text-xs text-slate-500 mt-1">우측 패널에 직무 정보를 입력하면 내 프로필 기반으로 완벽한 서류를 작성합니다.</p>
+                </div>
+                <button id="btn-generate" onclick="app.generateDocuments()" class="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-md font-medium transition-colors shadow-sm flex items-center">
+                    <span id="btn-generate-text">🚀 맞춤 서류 만들기</span>
+                </button>
+            </header>
+
+            <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+                <!-- Left: JD Input Form -->
+                <div class="w-full lg:w-1/3 border-r border-slate-200 bg-slate-50 overflow-y-auto p-5">
+                    <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-2">
+                            <h2 class="font-bold text-slate-800 text-sm">타겟 직무 정보 입력</h2>
+                            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded">히스토리 학습 활성화 됨 🟢</span>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">지원 기업명 *</label>
+                            <input type="text" id="input-company" class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" placeholder="예: 인하대학교">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">지원 직무 *</label>
+                            <input type="text" id="input-role" class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500" placeholder="예: 디지털 홍보 마케터, 교직원">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">채용공고(JD) 주요 내용 / 링크</label>
+                            <textarea id="input-jd" class="w-full border border-slate-300 rounded px-3 py-2 text-sm h-32 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 resize-none" placeholder="공고의 주요 우대사항, 주요 업무 등을 복사해서 붙여넣으세요. AI가 키워드를 분석합니다."></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">강조하고 싶은 나의 경험 (선택)</label>
+                            <textarea id="input-extra" class="w-full border border-slate-300 rounded px-3 py-2 text-sm h-20 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 resize-none" placeholder="이번 지원에서 특별히 어필하고 싶은 프로젝트나 강점을 적어주세요."></textarea>
+                        </div>
+                        
+                        <div class="bg-blue-50 text-blue-800 text-xs p-3 rounded-md border border-blue-100 flex items-start mt-4">
+                            <span class="mr-2">💡</span>
+                            <p>입력된 정보와 <strong>[내 프로필]</strong>의 기존 이력을 바탕으로 AI가 최적의 문맥을 찾아 문서를 작성합니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Generated Output Tabs -->
+                <div class="w-full lg:w-2/3 bg-white flex flex-col relative overflow-hidden">
+                    
+                    <!-- Empty State Overlay -->
+                    <div id="workspace-empty-state" class="absolute inset-0 z-10 bg-white flex flex-col items-center justify-center p-8 text-center fade-in">
+                        <div class="text-5xl mb-4 opacity-50">📝</div>
+                        <h3 class="text-lg font-bold text-slate-700 mb-2">아직 생성된 문서가 없습니다.</h3>
+                        <p class="text-sm text-slate-500 max-w-sm">좌측 폼에 지원하고자 하는 기업과 직무 정보를 입력하고 우측 상단의 <strong>[맞춤 서류 만들기]</strong> 버튼을 클릭해주세요.</p>
+                    </div>
+
+                    <!-- Output Content (Hidden initially) -->
+                    <div id="workspace-content" class="hidden flex-col h-full fade-in">
+                        <!-- Tabs -->
+                        <div class="flex border-b border-slate-200 bg-slate-50 px-4 flex-shrink-0">
+                            <button onclick="app.switchTab('coverletter')" id="tab-coverletter" class="tab-btn active px-4 py-3 text-sm font-semibold border-b-2 border-primary-600 text-primary-600">자기소개서</button>
+                            <button onclick="app.switchTab('resume')" id="tab-resume" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700">경력기술서</button>
+                            <button onclick="app.switchTab('interview')" id="tab-interview" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700">면접 예상질문</button>
+                            <div class="ml-auto flex items-center space-x-2 py-2">
+                                <button class="text-xs bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded hover:bg-slate-50 flex items-center">
+                                    <span class="mr-1">📋</span> 복사
+                                </button>
+                                <button class="text-xs bg-[#4f46e5] text-white px-3 py-1.5 rounded hover:bg-[#4338ca] shadow-sm flex items-center">
+                                    <span class="mr-1">🖨️</span> PDF 저장
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Tab Contents -->
+                        <div class="flex-1 overflow-y-auto p-6 md:p-8 bg-white">
+                            
+                            <!-- Cover Letter Tab -->
+                            <div id="content-coverletter" class="tab-content block max-w-3xl mx-auto">
+                                <div class="bg-primary-50 border border-primary-100 p-4 rounded-lg mb-6 flex items-start">
+                                    <span class="mr-3 text-lg">🤖</span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-primary-800">AI 작성 포인트</p>
+                                        <p class="text-xs text-primary-600 mt-1">사용자님의 '데이터 기반 퍼포먼스 마케팅 경험'과 'AI 툴 활용 역량'을 인하대학교의 글로벌 브랜드 가치 제고 및 디지털 소통 환경에 맞춰 강조했습니다.</p>
+                                    </div>
+                                </div>
+                                <h2 class="text-xl font-bold text-slate-800 mb-6 pb-2 border-b border-slate-100" id="output-title">인하대학교 디지털 마케팅 맞춤 자기소개서</h2>
+                                
+                                <div class="space-y-6">
+                                    <div class="border-l-4 border-primary-500 pl-4">
+                                        <h3 class="text-sm font-bold text-primary-700 mb-2">지원동기</h3>
+                                        <p class="text-sm text-slate-700 leading-relaxed text-justify">
+                                            인하대학교의 "글로벌 프런티어" 비전과 혁신적인 교육 시스템에 깊이 공감하여 지원합니다. 학령인구 감소와 디지털 전환이라는 시대적 흐름 속에서, 대학의 경쟁력은 곧 정교한 타겟팅과 데이터 기반의 브랜드 커뮤니케이션에 있다고 생각합니다. 5년간 디지털 마케팅 현장에서 축적한 퍼포먼스 최적화 및 AI 자동화 경험을 바탕으로, 인하대학교가 예비 신입생과 재학생, 그리고 동문들에게 가장 매력적이고 혁신적인 대학으로 다가가도록 돕고 싶습니다.
+                                        </p>
+                                    </div>
+                                    <div class="border-l-4 border-primary-500 pl-4">
+                                        <h3 class="text-sm font-bold text-primary-700 mb-2">관련 경험/역량</h3>
+                                        <p class="text-sm text-slate-700 leading-relaxed text-justify">
+                                            ABC컴퍼니에서 디지털 마케팅 매니저로 재직하며 월 5억 규모의 캠페인을 성공적으로 운영했습니다. 특히, ChatGPT와 Claude 등 AI API를 활용해 다양한 A/B 테스트를 자동화하고, 퍼널 분석을 통해 타겟 고객의 이탈률을 방어한 경험이 있습니다. 이러한 데이터 기반의 의사결정 프로세스와 AI 활용 능력은 인하대학교의 입시 홍보, 유학생 유치 캠페인, 주요 연구 성과 확산 등 다양한 목적의 커뮤니케이션을 가장 효율적으로 수행하는 데 밑거름이 될 것입니다.
+                                        </p>
+                                    </div>
+                                    <div class="border-l-4 border-primary-500 pl-4">
+                                        <h3 class="text-sm font-bold text-primary-700 mb-2">기여할 수 있는 부분</h3>
+                                        <p class="text-sm text-slate-700 leading-relaxed text-justify">
+                                            인하대학교 홍보 및 마케팅 파트에서 데이터 분석과 AI 기술을 접목한 '스마트 커뮤니케이션 체계'를 구축하겠습니다. 입시철 단기적인 광고 집행을 넘어, GA4와 데이터 툴을 활용해 홈페이지 및 홍보 채널 방문자의 행동 데이터를 정밀하게 분석하겠습니다. 이를 통해 타겟별(수험생, 학부모, 유학생 등) 맞춤형 메시지를 AI로 신속하게 도출하고 퍼포먼스를 최적화하여, 인하대학교의 브랜드 인지도를 높이고 우수 인재 유치에 직접적으로 기여하는 교직원이 되겠습니다.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Resume Tab -->
+                            <div id="content-resume" class="tab-content hidden max-w-3xl mx-auto">
+                                <h2 class="text-xl font-bold text-slate-800 mb-6 pb-2 border-b border-slate-100">핵심 역량 및 경력 요약</h2>
+                                
+                                <div class="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-6">
+                                    <h3 class="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">자기소개 (Summary)</h3>
+                                    <p class="text-sm text-slate-700 leading-relaxed">
+                                        5년차 디지털 마케터. Google Analytics 4·Meta Ads·Python·ChatGPT API를 활용한 AI 기반 퍼포먼스 마케팅 전문. ABC컴퍼니에서 월 5억 규모 광고 운영 및 AI 자동화 파이프라인 구축으로 ROAS 287% 개선. ADsP·GAIQ·정보처리기사 보유, 2024 디지털마케팅어워드 대상 수상. 인하대학교의 디지털 브랜드 홍보 및 데이터 기반 마케팅에 즉시 기여 가능.
+                                    </p>
+                                </div>
+
+                                <div class="bg-slate-50 border border-slate-200 rounded-lg p-5">
+                                    <h3 class="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">특기사항 및 주요 성과</h3>
+                                    <ul class="list-disc pl-5 space-y-2 text-sm text-slate-700">
+                                        <li>데이터 기반 의사결정 — 가설→실험→검증 사이클을 캠페인 단위로 적용해 ROAS 287% 개선</li>
+                                        <li>AI 도구 활용 자동화 — ChatGPT/Claude API + Python으로 마케팅 반복업무 80% 제거</li>
+                                        <li>GA4·Mixpanel 기반 퍼널 분석 능력 — 사용자 여정 정밀 추적·이탈 지점 진단</li>
+                                        <li>영문 미팅·문서화 가능 (TOEIC 950) — 해외 마케팅 툴 베타·도큐먼트 직접 활용</li>
+                                        <li>1인 사업가·중소 SaaS 고객 인사이트 보유 — CAC/LTV 구조에 최적화된 그로스 전략 설계</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Interview Tab -->
+                            <div id="content-interview" class="tab-content hidden max-w-3xl mx-auto">
+                                <div class="bg-orange-50 border border-orange-100 p-4 rounded-lg mb-6 flex items-start">
+                                    <span class="mr-3 text-lg">💡</span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-orange-800">면접 준비 팁</p>
+                                        <p class="text-xs text-orange-600 mt-1">입력하신 JD와 프로필을 기반으로 직무 역량 검증과 컬처핏 위주의 질문을 추출했습니다. 인하대학교 맞춤 답변 가이드를 참고해 연습해보세요.</p>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-6">
+                                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                                            <h3 class="text-sm font-bold text-slate-800">Q1. 인하대학교의 최근 홍보 채널(유튜브, 인스타그램 등)을 보셨다면, 개선할 점이나 새롭게 도입하고 싶은 마케팅 전략이 있나요?</h3>
+                                        </div>
+                                        <div class="p-4 bg-white">
+                                            <p class="text-xs font-semibold text-primary-600 mb-1">AI 답변 가이드 (나의 경험 기반):</p>
+                                            <p class="text-sm text-slate-700 leading-relaxed text-justify">
+                                                인하대학교 공식 유튜브의 쇼츠(Shorts) 활용 빈도를 높이는 것을 제안합니다. 현재 10대 수험생의 정보 습득은 숏폼 위주로 이루어집니다. 제가 가진 AI 영상 툴 및 카피라이팅 자동화 역량을 활용해, 인하대의 우수한 연구 성과나 캠퍼스 라이프를 매주 3건 이상 숏폼으로 제작하여 자연 유입을 극대화하겠습니다.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                                            <h3 class="text-sm font-bold text-slate-800">Q2. 대학(비영리 교육기관) 마케팅과 일반 기업 마케팅의 가장 큰 차이점은 무엇이라 생각하며, 본인의 경험을 어떻게 적용할 수 있나요?</h3>
+                                        </div>
+                                        <div class="p-4 bg-white">
+                                            <p class="text-xs font-semibold text-primary-600 mb-1">AI 답변 가이드 (나의 경험 기반):</p>
+                                            <p class="text-sm text-slate-700 leading-relaxed text-justify">
+                                                기업은 즉각적인 '매출(ROAS)'이 핵심이지만, 대학은 '브랜드 신뢰도'와 '우수 인재 유치'라는 장기적 가치가 중요하다고 생각합니다. 하지만 둘 다 '원하는 타겟에게 정확한 메시지를 전달한다'는 본질은 같습니다. 저의 퍼포먼스 마케팅 경험을 살려, 대학 홍보 예산을 가장 효율적으로 분배하고 성과를 정량적으로 측정하는 시스템을 도입하겠습니다.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                                            <h3 class="text-sm font-bold text-slate-800">Q3. 입사 후 첫 3개월 동안 가장 먼저 하고 싶은 일은 무엇인가요?</h3>
+                                        </div>
+                                        <div class="p-4 bg-white">
+                                            <p class="text-xs font-semibold text-primary-600 mb-1">AI 답변 가이드 (나의 경험 기반):</p>
+                                            <p class="text-sm text-slate-700 leading-relaxed text-justify">
+                                                첫 2주는 인하대학교의 기존 홍보 채널(웹사이트, 입학처, SNS) 방문자 데이터를 GA4 등을 통해 분석하여 수험생과 학부모의 주요 유입 경로와 이탈 지점을 파악하겠습니다. 3주차부터는 가장 이탈이 많은 구간에 대한 A/B 테스트를 진행하고, 3개월 내에 AI 기반의 맞춤형 홍보 콘텐츠 배포 프로세스를 세팅하여 채널 참여율을 15% 이상 개선하는 것을 목표로 하겠습니다.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: Profile Settings -->
+        <div id="view-profile" class="view-section hidden flex-1 overflow-y-auto p-4 md:p-8">
+            <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <header class="px-6 py-5 border-b border-slate-100 bg-slate-50">
+                    <h1 class="text-xl font-bold text-slate-800">내 정보 (Base Profile)</h1>
+                    <p class="text-sm text-slate-500 mt-1">이곳에 입력된 정보를 바탕으로 AI가 모든 서류를 개인화하여 작성합니다. (Phase 1)</p>
+                </header>
+                
+                <div class="p-6 md:p-8 space-y-8">
+                    <!-- Photo & Basic Info -->
+                    <div class="flex flex-col md:flex-row gap-6 items-start">
+                        <div class="w-32 h-40 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center text-slate-400 bg-slate-50 cursor-pointer hover:bg-slate-100 transition flex-shrink-0">
+                            <span class="text-3xl mb-2">📷</span>
+                            <span class="text-xs font-medium">사진 업로드</span>
+                        </div>
+                        <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">이름 *</label>
+                                <input type="text" value="홍길동" class="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-slate-50" readonly>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">성별</label>
+                                    <select class="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-slate-50" disabled><option>남성</option></select>
+                                </div>
+                                <div class="flex-1">
+                                    <label class="block text-xs font-semibold text-slate-600 mb-1">나이</label>
+                                    <input type="number" value="30" class="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-slate-50" readonly>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">이메일</label>
+                                <input type="email" value="hong@example.com" class="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-slate-50" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">연락처</label>
+                                <input type="text" value="010-1234-5678" class="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-slate-50" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <!-- Skills & Certs -->
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-3">보유 스킬 및 자격증</h3>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="bg-primary-50 text-primary-700 border border-primary-200 text-xs px-2.5 py-1 rounded-full">Google Analytics 4</span>
+                            <span class="bg-primary-50 text-primary-700 border border-primary-200 text-xs px-2.5 py-1 rounded-full">Meta Ads Manager</span>
+                            <span class="bg-primary-50 text-primary-700 border border-primary-200 text-xs px-2.5 py-1 rounded-full">Python</span>
+                            <span class="bg-primary-50 text-primary-700 border border-primary-200 text-xs px-2.5 py-1 rounded-full">ChatGPT API</span>
+                            <span class="bg-slate-100 text-slate-600 border border-slate-200 text-xs px-2.5 py-1 rounded-full">+ 스킬 추가</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="bg-orange-50 text-orange-700 border border-orange-200 text-xs px-2.5 py-1 rounded-full">ADsP (데이터분석 준전문가)</span>
+                            <span class="bg-orange-50 text-orange-700 border border-orange-200 text-xs px-2.5 py-1 rounded-full">TOEIC 950</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <!-- Free Text Experience -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-sm font-bold text-slate-800">강점 / 자유 기술 (마스터 자소서)</h3>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-2">성격, 강점, 프로젝트 경험, 업무 스타일 등을 자유롭게 작성해주세요. 이 정보를 DB에 저장하고, AI가 이 내용을 바탕으로 맞춤 문서를 생성합니다.</p>
+                        <!-- readonly 속성을 제거하여 유저가 직접 수정하고 저장할 수 있도록 변경 -->
+                        <textarea id="input-profile-exp" class="w-full border border-slate-300 rounded-lg p-3 text-sm h-40 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 bg-white text-slate-700 shadow-inner">5년차 디지털 마케터. Google Analytics 4·Meta Ads·Python·ChatGPT API를 활용한 AI 기반 퍼포먼스 마케팅 전문. ABC컴퍼니에서 월 5억 규모 광고 운영 및 AI 자동화 파이프라인 구축으로 ROAS 287% 개선. 데이터 기반 의사결정(가설-실험-검증)을 중시하며, AI 도구를 활용해 반복 업무를 80% 이상 제거한 경험이 있음.</textarea>
+                    </div>
+
+                    <div class="flex justify-end pt-4">
+                        <button id="btn-save-profile" onclick="window.app.saveProfile()" class="bg-slate-800 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-slate-700 transition shadow-sm">프로필 DB에 저장</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 기존 script를 지우고 Firebase 및 Gemini API가 연동된 module 스크립트로 전면 교체 -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, addDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
+
+        // --- 환경 변수 설정 ---
+        const apiKey = ""; // Gemini API Key (환경에서 자동 주입됨)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        // --- Firebase 초기화 ---
+        const firebaseApp = initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+        const db = getFirestore(firebaseApp);
+
+        // --- 전역 앱 상태 관리 ---
+        window.appState = {
+            currentView: 'dashboard',
+            userId: null,
+            kanbanData: [],
+            kanbanStages: [
+                { id: '지원예정', label: '지원 예정', color: 'border-slate-300 bg-slate-100 text-slate-700' },
+                { id: '서류제출', label: '서류 제출', color: 'border-blue-300 bg-blue-50 text-blue-700' },
+                { id: '서류합격', label: '서류 합격', color: 'border-emerald-300 bg-emerald-50 text-emerald-700' },
+                { id: '서류불합격', label: '서류 불합격', color: 'border-rose-300 bg-rose-50 text-rose-700' },
+                { id: '면접진행', label: '면접 진행', color: 'border-orange-300 bg-orange-50 text-orange-700' },
+                { id: '면접불합격', label: '면접 불합격', color: 'border-red-300 bg-red-50 text-red-700' },
+                { id: '최종합격', label: '최종 합격 🏆', color: 'border-green-300 bg-green-50 text-green-700' }
+            ]
+        };
+
+        // --- 앱 코어 로직 ---
+        window.app = {
+            chartsInitialized: false,
+            statusChartInstance: null,
+            activityChartInstance: null,
+
+            init: async function() {
+                try {
+                    // 인증 선행 (MANDATORY RULE 3)
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Auth init failed:", error);
+                }
+
+                // 인증 상태 감지 후 DB 리스너 연결
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        window.appState.userId = user.uid;
+                        this.setupDatabaseListeners();
+                    }
+                });
+
+                this.switchView('dashboard');
+            },
+
+            setupDatabaseListeners: function() {
+                if (!window.appState.userId) return;
+                const uid = window.appState.userId;
+
+                // 1. 프로필 DB 실시간 연동
+                const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile');
+                onSnapshot(profileRef, (docSnap) => {
+                    if (docSnap.exists() && docSnap.data().experience) {
+                        document.getElementById('input-profile-exp').value = docSnap.data().experience;
+                    }
+                }, (error) => console.error("Profile listen error:", error));
+
+                // 2. 칸반보드(지원 히스토리) DB 실시간 연동
+                const appsRef = collection(db, 'artifacts', appId, 'users', uid, 'applications');
+                onSnapshot(appsRef, (snapshot) => {
+                    const apps = [];
+                    snapshot.forEach(doc => {
+                        apps.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    // 정렬 로직 (클라이언트 메모리상 처리 - Rule 2 준수)
+                    apps.sort((a, b) => b.createdAt - a.createdAt);
+                    window.appState.kanbanData = apps;
+                    
+                    this.renderKanban();
+                    this.updateDashboardStats(apps);
+                }, (error) => console.error("Applications listen error:", error));
+            },
+
+            updateDashboardStats: function(apps) {
+                document.getElementById('stat-total').innerText = apps.length;
+                document.getElementById('stat-generated').innerText = apps.length * 3; // 각 지원마다 3종류의 문서(자소서,이력서,면접질문) 생성
+                
+                let finalPassCount = 0;
+                apps.forEach(a => { if (a.status === '최종합격') finalPassCount++; });
+                const rate = apps.length > 0 ? Math.round((finalPassCount / apps.length) * 100) : 0;
+                document.getElementById('stat-final-rate').innerText = `${rate}%`;
+
+                if (this.chartsInitialized) {
+                    this.updateCharts();
+                } else {
+                    this.initCharts();
+                }
+            },
+
+            // 프로필 Firestore에 저장
+            saveProfile: async function() {
+                if (!window.appState.userId) return alert("데이터베이스 연결을 기다려주세요.");
+                const btn = document.getElementById('btn-save-profile');
+                const exp = document.getElementById('input-profile-exp').value;
+                
+                btn.innerText = "DB 저장 중...";
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'users', window.appState.userId, 'profile'), {
+                        experience: exp,
+                        updatedAt: Date.now()
+                    });
+                    btn.innerText = "저장 완료 ✓";
+                    setTimeout(() => btn.innerText = "프로필 DB에 저장", 2000);
+                } catch (e) {
+                    console.error("Profile save error:", e);
+                    btn.innerText = "저장 실패";
+                }
+            },
+
+            switchView: function(viewId) {
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('bg-primary-50', 'text-primary-600');
+                    btn.classList.add('text-slate-600', 'hover:bg-slate-50');
+                });
+                document.getElementById(`nav-${viewId}`).classList.remove('text-slate-600', 'hover:bg-slate-50');
+                document.getElementById(`nav-${viewId}`).classList.add('bg-primary-50', 'text-primary-600');
+
+                document.querySelectorAll('.view-section').forEach(view => view.classList.add('hidden'));
+                document.getElementById(`view-${viewId}`).classList.remove('hidden');
+                document.getElementById(`view-${viewId}`).classList.add('flex');
+            },
+
+            switchTab: function(tabId) {
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active', 'border-primary-600', 'text-primary-600');
+                    btn.classList.add('border-transparent', 'text-slate-500');
+                });
+                const activeBtn = document.getElementById(`tab-${tabId}`);
+                activeBtn.classList.remove('border-transparent', 'text-slate-500');
+                activeBtn.classList.add('active', 'border-primary-600', 'text-primary-600');
+
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                    content.classList.remove('block');
+                });
+                document.getElementById(`content-${tabId}`).classList.remove('hidden');
+                document.getElementById(`content-${tabId}`).classList.add('block');
+            },
+
+            // --- AI API 연동 (Gemini) ---
+            generateDocuments: async function() {
+                if (!window.appState.userId) return alert("데이터베이스가 연동되지 않았습니다.");
+                
+                const company = document.getElementById('input-company').value.trim();
+                const role = document.getElementById('input-role').value.trim();
+                const jd = document.getElementById('input-jd').value.trim();
+                const extra = document.getElementById('input-extra').value.trim();
+                const profileExp = document.getElementById('input-profile-exp').value.trim();
+
+                if (!company || !role) return alert("지원 기업명과 직무를 입력해주세요.");
+
+                const btn = document.getElementById('btn-generate');
+                const btnText = document.getElementById('btn-generate-text');
+                
+                btn.disabled = true;
+                btnText.innerHTML = '<span class="loader"></span> Gemini AI 문맥 생성 중...';
+                btn.classList.replace('bg-primary-600', 'bg-primary-400');
+
+                try {
+                    // 프롬프트 엔지니어링
+                    const prompt = `당신은 뛰어난 헤드헌터이자 커리어 코치입니다. 다음 정보를 바탕으로 지원자의 서류와 면접 질문을 생성해주세요.
+                    [지원 기업]: ${company}
+                    [지원 직무]: ${role}
+                    [채용 공고/우대사항]: ${jd || '일반적인 해당 직무의 요구사항을 반영할 것'}
+                    [강조하고 싶은 경험]: ${extra}
+                    [지원자 기본 프로필 및 히스토리]: ${profileExp}
+                    
+                    위 정보를 분석하여 해당 기업/직무에 딱 맞고 눈길을 끄는 1) 자기소개서 (지원동기, 역량, 기여방안 등 3가지 섹션) 2) 경력기술서용 요약 및 핵심 성과 불릿 포인트 3) 날카로운 면접 예상질문과 답변 가이드(3개)를 작성하세요. 응답은 반드시 지정된 JSON 구조로만 반환하세요.`;
+
+                    // Gemini API 호출
+                    const resultData = await this.callGeminiAPI(prompt);
+                    
+                    // UI 렌더링
+                    this.renderGeneratedDocs(resultData, company, role);
+                    document.getElementById('workspace-empty-state').classList.add('hidden');
+                    document.getElementById('workspace-content').classList.remove('hidden');
+                    document.getElementById('workspace-content').classList.add('flex');
+                    
+                    // Firestore에 내역 추가
+                    const newApp = {
+                        company: company,
+                        role: role,
+                        status: '지원예정',
+                        date: new Date().toISOString().split('T')[0],
+                        createdAt: Date.now(),
+                        generatedData: resultData
+                    };
+                    await addDoc(collection(db, 'artifacts', appId, 'users', window.appState.userId, 'applications'), newApp);
+
+                } catch (error) {
+                    console.error("AI Generation Error:", error);
+                    alert("AI 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+                } finally {
+                    btn.disabled = false;
+                    btnText.innerHTML = '✨ 다시 생성하기';
+                    btn.classList.replace('bg-primary-400', 'bg-primary-600');
+                }
+            },
+
+            callGeminiAPI: async function(promptText) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ parts: [{ text: promptText }] }],
+                    systemInstruction: { parts: [{ text: "You are an ATS optimization specialist. Respond ONLY in valid JSON." }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            properties: {
+                                coverLetter: { type: "ARRAY", items: { type: "OBJECT", properties: { title: { type: "STRING" }, content: { type: "STRING" } } } },
+                                resumeSummary: { type: "STRING" },
+                                resumePoints: { type: "ARRAY", items: { type: "STRING" } },
+                                interviewQs: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, answerGuide: { type: "STRING" } } } }
+                            }
+                        }
+                    }
+                };
+
+                // Exponential backoff 재시도 로직
+                const delays = [1000, 2000, 4000, 8000, 16000];
+                for (let i = 0; i < 5; i++) {
+                    try {
+                        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const data = await response.json();
+                        return JSON.parse(data.candidates[0].content.parts[0].text);
+                    } catch (err) {
+                        if (i === 4) throw err;
+                        await new Promise(r => setTimeout(r, delays[i]));
+                    }
+                }
+            },
+
+            renderGeneratedDocs: function(data, company, role) {
+                document.getElementById('output-title').innerText = `${company} ${role} 맞춤 자기소개서`;
+                
+                // 자기소개서 렌더링
+                let clHtml = `
+                    <div class="bg-primary-50 border border-primary-100 p-4 rounded-lg mb-6 flex items-start">
+                        <span class="mr-3 text-lg">🤖</span>
+                        <div>
+                            <p class="text-sm font-semibold text-primary-800">AI 작성 포인트</p>
+                            <p class="text-xs text-primary-600 mt-1">${company}의 기업 분석 내용과 사용자님의 핵심 역량을 가장 매끄럽게 연결하도록 문맥을 최적화했습니다.</p>
+                        </div>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-800 mb-6 pb-2 border-b border-slate-100">${company} 맞춤 자기소개서</h2>
+                    <div class="space-y-6">`;
+                
+                (data.coverLetter || []).forEach(item => {
+                    clHtml += `<div class="border-l-4 border-primary-500 pl-4">
+                        <h3 class="text-sm font-bold text-primary-700 mb-2">${item.title}</h3>
+                        <p class="text-sm text-slate-700 leading-relaxed text-justify">${item.content}</p>
+                    </div>`;
+                });
+                clHtml += `</div>`;
+                document.getElementById('content-coverletter').innerHTML = clHtml;
+
+                // 이력서(경력기술서) 렌더링
+                let resHtml = `
+                    <h2 class="text-xl font-bold text-slate-800 mb-6 pb-2 border-b border-slate-100">핵심 역량 및 경력 요약</h2>
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-6">
+                        <h3 class="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">자기소개 (Summary)</h3>
+                        <p class="text-sm text-slate-700 leading-relaxed">${data.resumeSummary || ''}</p>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-5">
+                        <h3 class="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">특기사항 및 주요 성과</h3>
+                        <ul class="list-disc pl-5 space-y-2 text-sm text-slate-700">`;
+                (data.resumePoints || []).forEach(pt => { resHtml += `<li>${pt}</li>`; });
+                resHtml += `</ul></div>`;
+                document.getElementById('content-resume').innerHTML = resHtml;
+
+                // 면접 질문 렌더링
+                let intHtml = `
+                    <div class="bg-orange-50 border border-orange-100 p-4 rounded-lg mb-6 flex items-start">
+                        <span class="mr-3 text-lg">💡</span>
+                        <div>
+                            <p class="text-sm font-semibold text-orange-800">면접 준비 팁</p>
+                            <p class="text-xs text-orange-600 mt-1">입력된 역량을 바탕으로 압박 질문과 직무 전문성 위주의 질문을 도출했습니다.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-6">`;
+                (data.interviewQs || []).forEach((q, idx) => {
+                    intHtml += `<div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                            <h3 class="text-sm font-bold text-slate-800">Q${idx+1}. ${q.question}</h3>
+                        </div>
+                        <div class="p-4 bg-white">
+                            <p class="text-xs font-semibold text-primary-600 mb-1">AI 답변 가이드:</p>
+                            <p class="text-sm text-slate-700 leading-relaxed text-justify">${q.answerGuide}</p>
+                        </div>
+                    </div>`;
+                });
+                intHtml += `</div>`;
+                document.getElementById('content-interview').innerHTML = intHtml;
+            },
+
+            // --- Firestore 연동 칸반 로직 ---
+            renderKanban: function() {
+                const board = document.getElementById('kanban-board');
+                board.innerHTML = '';
+
+                window.appState.kanbanStages.forEach(stage => {
+                    const stageCards = window.appState.kanbanData.filter(card => card.status === stage.id);
+                    
+                    const column = document.createElement('div');
+                    column.className = 'w-72 flex-shrink-0 flex flex-col bg-slate-50 border border-slate-200 rounded-lg max-h-[500px] snap-center';
+                    
+                    const header = document.createElement('div');
+                    header.className = `px-4 py-3 border-b border-slate-200 rounded-t-lg text-sm font-bold flex justify-between items-center ${stage.color}`;
+                    header.innerHTML = `<span>${stage.label}</span> <span class="bg-white/50 px-2 py-0.5 rounded-full text-xs">${stageCards.length}</span>`;
+                    column.appendChild(header);
+
+                    const cardList = document.createElement('div');
+                    cardList.className = 'p-3 flex-1 overflow-y-auto space-y-3';
+                    
+                    stageCards.forEach(card => {
+                        const cardEl = document.createElement('div');
+                        cardEl.className = 'kanban-card bg-white p-3 border border-slate-200 rounded shadow-sm cursor-pointer relative group';
+                        
+                        let nextActionHtml = '';
+                        if(stage.id === '지원예정') {
+                            nextActionHtml = `<button onclick="window.app.moveCard('${card.id}', '서류제출')" class="absolute top-2 right-2 text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition shadow-sm">제출 ➡</button>`;
+                        } else if(stage.id === '서류제출') {
+                            nextActionHtml = `<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex space-x-1"><button onclick="window.app.moveCard('${card.id}', '서류합격')" class="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded shadow-sm">합격</button><button onclick="window.app.moveCard('${card.id}', '서류불합격')" class="text-xs bg-rose-50 text-rose-600 px-2 py-1 rounded shadow-sm">탈락</button></div>`;
+                        } else if(stage.id === '서류합격') {
+                            nextActionHtml = `<button onclick="window.app.moveCard('${card.id}', '면접진행')" class="absolute top-2 right-2 text-xs bg-orange-50 text-orange-600 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition shadow-sm">면접 ➡</button>`;
+                        } else if(stage.id === '면접진행') {
+                            nextActionHtml = `<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex space-x-1"><button onclick="window.app.moveCard('${card.id}', '최종합격')" class="text-xs bg-green-50 text-green-600 px-2 py-1 rounded shadow-sm">합격 🏆</button><button onclick="window.app.moveCard('${card.id}', '면접불합격')" class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded shadow-sm">탈락</button></div>`;
+                        }
+
+                        cardEl.innerHTML = `
+                            ${nextActionHtml}
+                            <h4 class="font-bold text-slate-800 text-sm mb-1">${card.company}</h4>
+                            <p class="text-xs text-slate-500 mb-2">${card.role}</p>
+                            <div class="flex justify-between items-center text-[10px] text-slate-400">
+                                <span>생성일: ${card.date}</span>
+                                <span>📄 AI 문서 완료</span>
+                            </div>
+                        `;
+                        cardList.appendChild(cardEl);
+                    });
+
+                    if(stageCards.length === 0) {
+                        cardList.innerHTML = `<div class="h-full flex items-center justify-center text-xs text-slate-400 italic">내역 없음</div>`;
+                    }
+
+                    column.appendChild(cardList);
+                    board.appendChild(column);
+                });
+            },
+
+            moveCard: async function(cardId, newStatus) {
+                if (!window.appState.userId) return;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'users', window.appState.userId, 'applications', String(cardId)), {
+                        status: newStatus
+                    });
+                    // UI는 onSnapshot 리스너에 의해 자동으로 업데이트 됨
+                } catch(e) {
+                    console.error("Error updating DB status", e);
+                }
+            },
+
+            // --- Chart.js ---
+            initCharts: function() {
+                if(this.chartsInitialized) return;
+                Chart.defaults.font.family = "'Pretendard', sans-serif";
+                Chart.defaults.color = '#64748b';
+
+                const ctxStatus = document.getElementById('statusChart').getContext('2d');
+                this.statusChartInstance = new Chart(ctxStatus, {
+                    type: 'doughnut',
+                    data: this.getStatusData(),
+                    options: {
+                        responsive: true, maintainAspectRatio: false, cutout: '70%',
+                        plugins: { legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true } }, tooltip: { padding: 10, cornerRadius: 4 } }
+                    }
+                });
+
+                const ctxActivity = document.getElementById('activityChart').getContext('2d');
+                this.activityChartInstance = new Chart(ctxActivity, {
+                    type: 'bar',
+                    data: {
+                        labels: ['월', '화', '수', '목', '금', '토', '일'],
+                        datasets: [
+                            { label: '활동 지수', data: [0, 1, 0, 3, 2, 0, 1], backgroundColor: '#10b981', borderRadius: 4 },
+                            { label: '지원 횟수', data: [0, 0, 0, 1, 1, 0, 0], backgroundColor: '#cbd5e1', borderRadius: 4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#f1f5f9' } }, x: { grid: { display: false } } },
+                        plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } } }
+                    }
+                });
+                this.chartsInitialized = true;
+            },
+
+            getStatusData: function() {
+                const counts = { '서류합격':0, '서류불합격':0, '최종합격':0, '면접불합격':0 };
+                window.appState.kanbanData.forEach(item => { if(counts[item.status] !== undefined) counts[item.status]++; });
+
+                const finalPass = counts['최종합격'];
+                const finalFail = counts['서류불합격'] + counts['면접불합격'];
+
+                // 둘 다 0일 경우 빈 데이터 표시 방지
+                if(finalPass === 0 && finalFail === 0) {
+                    return { labels: ['데이터 없음'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }] };
+                }
+
+                return {
+                    labels: ['합격 (최종)', '불합격 (최종)'],
+                    datasets: [{
+                        data: [finalPass, finalFail],
+                        backgroundColor: ['#4ade80', '#f87171'],
+                        borderWidth: 0, hoverOffset: 4
+                    }]
+                };
+            },
+
+            updateCharts: function() {
+                if(this.statusChartInstance) {
+                    this.statusChartInstance.data = this.getStatusData();
+                    this.statusChartInstance.update();
+                }
+            }
+        };
+
+        // 앱 초기화 실행
+        window.app.init();
+    </script>
+</body>
+</html>
