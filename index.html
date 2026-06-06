@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head> 
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Career Copilot - AI 커리어 파트너</title>
@@ -492,14 +492,14 @@
                     <div>
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-sm font-bold text-slate-800">강점 / 자유 기술 (마스터 자소서)</h3>
+                            <button class="text-xs text-primary-600 flex items-center"><span class="mr-1">✏️</span>AI 교정 받기</button>
                         </div>
-                        <p class="text-xs text-slate-500 mb-2">성격, 강점, 프로젝트 경험, 업무 스타일 등을 자유롭게 작성해주세요. 이 정보를 DB에 저장하고, AI가 이 내용을 바탕으로 맞춤 문서를 생성합니다.</p>
-                        <!-- readonly 속성을 제거하여 유저가 직접 수정하고 저장할 수 있도록 변경 -->
-                        <textarea id="input-profile-exp" class="w-full border border-slate-300 rounded-lg p-3 text-sm h-40 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 bg-white text-slate-700 shadow-inner">5년차 디지털 마케터. Google Analytics 4·Meta Ads·Python·ChatGPT API를 활용한 AI 기반 퍼포먼스 마케팅 전문. ABC컴퍼니에서 월 5억 규모 광고 운영 및 AI 자동화 파이프라인 구축으로 ROAS 287% 개선. 데이터 기반 의사결정(가설-실험-검증)을 중시하며, AI 도구를 활용해 반복 업무를 80% 이상 제거한 경험이 있음.</textarea>
+                        <p class="text-xs text-slate-500 mb-2">성격, 강점, 프로젝트 경험, 업무 스타일 등을 자유롭게 작성해주세요. 길게 적을수록 AI가 더 정교한 맞춤 문서를 생성합니다.</p>
+                        <textarea class="w-full border border-slate-300 rounded-lg p-3 text-sm h-40 focus:outline-none bg-slate-50 text-slate-700" readonly>5년차 디지털 마케터. Google Analytics 4·Meta Ads·Python·ChatGPT API를 활용한 AI 기반 퍼포먼스 마케팅 전문. ABC컴퍼니에서 월 5억 규모 광고 운영 및 AI 자동화 파이프라인 구축으로 ROAS 287% 개선. 데이터 기반 의사결정(가설-실험-검증)을 중시하며, AI 도구를 활용해 반복 업무를 80% 이상 제거한 경험이 있음.</textarea>
                     </div>
 
                     <div class="flex justify-end pt-4">
-                        <button id="btn-save-profile" onclick="window.app.saveProfile()" class="bg-slate-800 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-slate-700 transition shadow-sm">프로필 DB에 저장</button>
+                        <button class="bg-slate-800 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-slate-700 transition">프로필 저장</button>
                     </div>
                 </div>
             </div>
@@ -507,27 +507,19 @@
 
     </main>
 
-    <!-- 기존 script를 지우고 Firebase 및 Gemini API가 연동된 module 스크립트로 전면 교체 -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
-        import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, addDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
-
-        // --- 환경 변수 설정 ---
-        const apiKey = ""; // Gemini API Key (환경에서 자동 주입됨)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-
-        // --- Firebase 초기화 ---
-        const firebaseApp = initializeApp(firebaseConfig);
-        const auth = getAuth(firebaseApp);
-        const db = getFirestore(firebaseApp);
-
-        // --- 전역 앱 상태 관리 ---
-        window.appState = {
+    <script>
+        // --- Application State & Data ---
+        const appState = {
             currentView: 'dashboard',
-            userId: null,
-            kanbanData: [],
+            kanbanData: [
+                { id: 1, company: '네이버', role: '그로스 마케터', status: '최종합격', date: '2023-10-12' },
+                { id: 2, company: '토스', role: '퍼포먼스 마케터', status: '면접진행', date: '2023-10-15' },
+                { id: 3, company: '당근마켓', role: 'CRM 마케터', status: '서류제출', date: '2023-10-18' },
+                { id: 4, company: '배달의민족', role: '콘텐츠 마케터', status: '서류불합격', date: '2023-09-20' },
+                { id: 5, company: '무신사', role: '데이터 분석가', status: '지원예정', date: '2023-10-25' },
+                { id: 6, company: '카카오', role: '브랜드 마케터', status: '서류합격', date: '2023-10-20' },
+                { id: 7, company: '쿠팡', role: '퍼포먼스 마케터', status: '면접불합격', date: '2023-10-05' }
+            ],
             kanbanStages: [
                 { id: '지원예정', label: '지원 예정', color: 'border-slate-300 bg-slate-100 text-slate-700' },
                 { id: '서류제출', label: '서류 제출', color: 'border-blue-300 bg-blue-50 text-blue-700' },
@@ -539,101 +531,10 @@
             ]
         };
 
-        // --- 앱 코어 로직 ---
-        window.app = {
-            chartsInitialized: false,
-            statusChartInstance: null,
-            activityChartInstance: null,
-
-            init: async function() {
-                try {
-                    // 인증 선행 (MANDATORY RULE 3)
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (error) {
-                    console.error("Auth init failed:", error);
-                }
-
-                // 인증 상태 감지 후 DB 리스너 연결
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        window.appState.userId = user.uid;
-                        this.setupDatabaseListeners();
-                    }
-                });
-
-                this.switchView('dashboard');
-            },
-
-            setupDatabaseListeners: function() {
-                if (!window.appState.userId) return;
-                const uid = window.appState.userId;
-
-                // 1. 프로필 DB 실시간 연동
-                const profileRef = doc(db, 'artifacts', appId, 'users', uid);
-                onSnapshot(profileRef, (docSnap) => {
-                    if (docSnap.exists() && docSnap.data().experience) {
-                        document.getElementById('input-profile-exp').value = docSnap.data().experience;
-                    }
-                }, (error) => console.error("Profile listen error:", error));
-
-                // 2. 칸반보드(지원 히스토리) DB 실시간 연동
-                const appsRef = collection(db, 'artifacts', appId, 'users', uid, 'applications');
-                onSnapshot(appsRef, (snapshot) => {
-                    const apps = [];
-                    snapshot.forEach(doc => {
-                        apps.push({ id: doc.id, ...doc.data() });
-                    });
-                    
-                    // 정렬 로직 (클라이언트 메모리상 처리 - Rule 2 준수)
-                    apps.sort((a, b) => b.createdAt - a.createdAt);
-                    window.appState.kanbanData = apps;
-                    
-                    this.renderKanban();
-                    this.updateDashboardStats(apps);
-                }, (error) => console.error("Applications listen error:", error));
-            },
-
-            updateDashboardStats: function(apps) {
-                document.getElementById('stat-total').innerText = apps.length;
-                document.getElementById('stat-generated').innerText = apps.length * 3; // 각 지원마다 3종류의 문서(자소서,이력서,면접질문) 생성
-                
-                let finalPassCount = 0;
-                apps.forEach(a => { if (a.status === '최종합격') finalPassCount++; });
-                const rate = apps.length > 0 ? Math.round((finalPassCount / apps.length) * 100) : 0;
-                document.getElementById('stat-final-rate').innerText = `${rate}%`;
-
-                if (this.chartsInitialized) {
-                    this.updateCharts();
-                } else {
-                    this.initCharts();
-                }
-            },
-
-            // 프로필 Firestore에 저장
-            saveProfile: async function() {
-                if (!window.appState.userId) return alert("데이터베이스 연결을 기다려주세요.");
-                const btn = document.getElementById('btn-save-profile');
-                const exp = document.getElementById('input-profile-exp').value;
-                
-                btn.innerText = "DB 저장 중...";
-                try {
-                    await setDoc(doc(db, 'artifacts', appId, 'users', window.appState.userId), {
-                        experience: exp,
-                        updatedAt: Date.now()
-                    , {merge: true });
-                    btn.innerText = "저장 완료 ✓";
-                    setTimeout(() => btn.innerText = "프로필 DB에 저장", 2000);
-                } catch (e) {
-                    console.error("Profile save error:", e);
-                    btn.innerText = "저장 실패";
-                }
-            },
-
+        const app = {
+            // --- Navigation Logic ---
             switchView: function(viewId) {
+                // Update nav styling
                 document.querySelectorAll('.nav-btn').forEach(btn => {
                     btn.classList.remove('bg-primary-50', 'text-primary-600');
                     btn.classList.add('text-slate-600', 'hover:bg-slate-50');
@@ -641,11 +542,17 @@
                 document.getElementById(`nav-${viewId}`).classList.remove('text-slate-600', 'hover:bg-slate-50');
                 document.getElementById(`nav-${viewId}`).classList.add('bg-primary-50', 'text-primary-600');
 
+                // Toggle views
                 document.querySelectorAll('.view-section').forEach(view => view.classList.add('hidden'));
                 document.getElementById(`view-${viewId}`).classList.remove('hidden');
-                document.getElementById(`view-${viewId}`).classList.add('flex');
+                document.getElementById(`view-${viewId}`).classList.add('flex'); // Maintain flex layout if needed
+
+                if(viewId === 'dashboard' && !app.chartsInitialized) {
+                    app.initCharts();
+                }
             },
 
+            // --- Generation Workspace Logic ---
             switchTab: function(tabId) {
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.classList.remove('active', 'border-primary-600', 'text-primary-600');
@@ -663,179 +570,69 @@
                 document.getElementById(`content-${tabId}`).classList.add('block');
             },
 
-            // --- AI API 연동 (Gemini) ---
-            generateDocuments: async function() {
-                if (!window.appState.userId) return alert("데이터베이스가 연동되지 않았습니다.");
-                
-                const company = document.getElementById('input-company').value.trim();
-                const role = document.getElementById('input-role').value.trim();
-                const jd = document.getElementById('input-jd').value.trim();
-                const extra = document.getElementById('input-extra').value.trim();
-                const profileExp = document.getElementById('input-profile-exp').value.trim();
-
-                if (!company || !role) return alert("지원 기업명과 직무를 입력해주세요.");
-
+            generateDocuments: function() {
+                const company = document.getElementById('input-company').value.trim() || '인하대학교';
+                const role = document.getElementById('input-role').value.trim() || '디지털 홍보 마케터';
                 const btn = document.getElementById('btn-generate');
                 const btnText = document.getElementById('btn-generate-text');
                 
+                // 1. Loading State
                 btn.disabled = true;
-                btnText.innerHTML = '<span class="loader"></span> Gemini AI 문맥 생성 중...';
+                btnText.innerHTML = '<span class="loader"></span> 생성 중... (AI 분석)';
                 btn.classList.replace('bg-primary-600', 'bg-primary-400');
 
-                try {
-                    // 프롬프트 엔지니어링
-                    const prompt = `당신은 뛰어난 헤드헌터이자 커리어 코치입니다. 다음 정보를 바탕으로 지원자의 서류와 면접 질문을 생성해주세요.
-                    [지원 기업]: ${company}
-                    [지원 직무]: ${role}
-                    [채용 공고/우대사항]: ${jd || '일반적인 해당 직무의 요구사항을 반영할 것'}
-                    [강조하고 싶은 경험]: ${extra}
-                    [지원자 기본 프로필 및 히스토리]: ${profileExp}
-                    
-                    위 정보를 분석하여 해당 기업/직무에 딱 맞고 눈길을 끄는 1) 자기소개서 (지원동기, 역량, 기여방안 등 3가지 섹션) 2) 경력기술서용 요약 및 핵심 성과 불릿 포인트 3) 날카로운 면접 예상질문과 답변 가이드(3개)를 작성하세요. 응답은 반드시 지정된 JSON 구조로만 반환하세요.`;
-
-                    // Gemini API 호출
-                    const resultData = await this.callGeminiAPI(prompt);
-                    
-                    // UI 렌더링
-                    this.renderGeneratedDocs(resultData, company, role);
+                // 2. Simulate API Call (Timeout)
+                setTimeout(() => {
+                    // Update UI
                     document.getElementById('workspace-empty-state').classList.add('hidden');
                     document.getElementById('workspace-content').classList.remove('hidden');
                     document.getElementById('workspace-content').classList.add('flex');
                     
-                    // Firestore에 내역 추가
-                    const newApp = {
-                        company: company,
-                        role: role,
-                        status: '지원예정',
-                        date: new Date().toISOString().split('T')[0],
-                        createdAt: Date.now(),
-                        generatedData: resultData
-                    };
-                    await addDoc(collection(db, 'artifacts', appId, 'users', window.appState.userId, 'applications'), newApp);
+                    document.getElementById('output-title').innerText = `${company} ${role} 맞춤 자기소개서`;
 
-                } catch (error) {
-                    console.error("AI Generation Error:", error);
-                    alert("AI 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-                } finally {
+                    // Reset button
                     btn.disabled = false;
                     btnText.innerHTML = '✨ 다시 생성하기';
                     btn.classList.replace('bg-primary-400', 'bg-primary-600');
-                }
-            },
 
-            callGeminiAPI: async function(promptText) {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                const payload = {
-                    contents: [{ parts: [{ text: promptText }] }],
-                    systemInstruction: { parts: [{ text: "You are an ATS optimization specialist. Respond ONLY in valid JSON." }] },
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: "OBJECT",
-                            properties: {
-                                coverLetter: { type: "ARRAY", items: { type: "OBJECT", properties: { title: { type: "STRING" }, content: { type: "STRING" } } } },
-                                resumeSummary: { type: "STRING" },
-                                resumePoints: { type: "ARRAY", items: { type: "STRING" } },
-                                interviewQs: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, answerGuide: { type: "STRING" } } } }
-                            }
-                        }
+                    // 3. Add to Kanban automatically (Tracker logic)
+                    const newId = appState.kanbanData.length + 1;
+                    const today = new Date().toISOString().split('T')[0];
+                    // Check if already exists to prevent duplicate on multiple clicks
+                    const exists = appState.kanbanData.find(d => d.company === company && d.role === role);
+                    if(!exists) {
+                        appState.kanbanData.push({
+                            id: newId, company: company, role: role, status: '지원예정', date: today
+                        });
+                        app.renderKanban();
+                        // Update stat
+                        const totalEl = document.getElementById('stat-total');
+                        const genEl = document.getElementById('stat-generated');
+                        totalEl.innerText = parseInt(totalEl.innerText) + 1;
+                        genEl.innerText = parseInt(genEl.innerText) + 3; // 3 docs generated
                     }
-                };
 
-                // Exponential backoff 재시도 로직
-                const delays = [1000, 2000, 4000, 8000, 16000];
-                for (let i = 0; i < 5; i++) {
-                    try {
-                        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        const data = await response.json();
-                        return JSON.parse(data.candidates[0].content.parts[0].text);
-                    } catch (err) {
-                        if (i === 4) throw err;
-                        await new Promise(r => setTimeout(r, delays[i]));
-                    }
-                }
+                }, 1500);
             },
 
-            renderGeneratedDocs: function(data, company, role) {
-                document.getElementById('output-title').innerText = `${company} ${role} 맞춤 자기소개서`;
-                
-                // 자기소개서 렌더링
-                let clHtml = `
-                    <div class="bg-primary-50 border border-primary-100 p-4 rounded-lg mb-6 flex items-start">
-                        <span class="mr-3 text-lg">🤖</span>
-                        <div>
-                            <p class="text-sm font-semibold text-primary-800">AI 작성 포인트</p>
-                            <p class="text-xs text-primary-600 mt-1">${company}의 기업 분석 내용과 사용자님의 핵심 역량을 가장 매끄럽게 연결하도록 문맥을 최적화했습니다.</p>
-                        </div>
-                    </div>
-                    <h2 class="text-xl font-bold text-slate-800 mb-6 pb-2 border-b border-slate-100">${company} 맞춤 자기소개서</h2>
-                    <div class="space-y-6">`;
-                
-                (data.coverLetter || []).forEach(item => {
-                    clHtml += `<div class="border-l-4 border-primary-500 pl-4">
-                        <h3 class="text-sm font-bold text-primary-700 mb-2">${item.title}</h3>
-                        <p class="text-sm text-slate-700 leading-relaxed text-justify">${item.content}</p>
-                    </div>`;
-                });
-                clHtml += `</div>`;
-                document.getElementById('content-coverletter').innerHTML = clHtml;
-
-                // 이력서(경력기술서) 렌더링
-                let resHtml = `
-                    <h2 class="text-xl font-bold text-slate-800 mb-6 pb-2 border-b border-slate-100">핵심 역량 및 경력 요약</h2>
-                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-6">
-                        <h3 class="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">자기소개 (Summary)</h3>
-                        <p class="text-sm text-slate-700 leading-relaxed">${data.resumeSummary || ''}</p>
-                    </div>
-                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-5">
-                        <h3 class="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">특기사항 및 주요 성과</h3>
-                        <ul class="list-disc pl-5 space-y-2 text-sm text-slate-700">`;
-                (data.resumePoints || []).forEach(pt => { resHtml += `<li>${pt}</li>`; });
-                resHtml += `</ul></div>`;
-                document.getElementById('content-resume').innerHTML = resHtml;
-
-                // 면접 질문 렌더링
-                let intHtml = `
-                    <div class="bg-orange-50 border border-orange-100 p-4 rounded-lg mb-6 flex items-start">
-                        <span class="mr-3 text-lg">💡</span>
-                        <div>
-                            <p class="text-sm font-semibold text-orange-800">면접 준비 팁</p>
-                            <p class="text-xs text-orange-600 mt-1">입력된 역량을 바탕으로 압박 질문과 직무 전문성 위주의 질문을 도출했습니다.</p>
-                        </div>
-                    </div>
-                    <div class="space-y-6">`;
-                (data.interviewQs || []).forEach((q, idx) => {
-                    intHtml += `<div class="border border-slate-200 rounded-lg overflow-hidden">
-                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-200">
-                            <h3 class="text-sm font-bold text-slate-800">Q${idx+1}. ${q.question}</h3>
-                        </div>
-                        <div class="p-4 bg-white">
-                            <p class="text-xs font-semibold text-primary-600 mb-1">AI 답변 가이드:</p>
-                            <p class="text-sm text-slate-700 leading-relaxed text-justify">${q.answerGuide}</p>
-                        </div>
-                    </div>`;
-                });
-                intHtml += `</div>`;
-                document.getElementById('content-interview').innerHTML = intHtml;
-            },
-
-            // --- Firestore 연동 칸반 로직 ---
+            // --- Dashboard Tracker Logic ---
             renderKanban: function() {
                 const board = document.getElementById('kanban-board');
                 board.innerHTML = '';
 
-                window.appState.kanbanStages.forEach(stage => {
-                    const stageCards = window.appState.kanbanData.filter(card => card.status === stage.id);
+                appState.kanbanStages.forEach(stage => {
+                    const stageCards = appState.kanbanData.filter(card => card.status === stage.id);
                     
                     const column = document.createElement('div');
                     column.className = 'w-72 flex-shrink-0 flex flex-col bg-slate-50 border border-slate-200 rounded-lg max-h-[500px] snap-center';
                     
+                    // Column Header
                     const header = document.createElement('div');
                     header.className = `px-4 py-3 border-b border-slate-200 rounded-t-lg text-sm font-bold flex justify-between items-center ${stage.color}`;
                     header.innerHTML = `<span>${stage.label}</span> <span class="bg-white/50 px-2 py-0.5 rounded-full text-xs">${stageCards.length}</span>`;
                     column.appendChild(header);
 
+                    // Cards Container
                     const cardList = document.createElement('div');
                     cardList.className = 'p-3 flex-1 overflow-y-auto space-y-3';
                     
@@ -843,15 +640,16 @@
                         const cardEl = document.createElement('div');
                         cardEl.className = 'kanban-card bg-white p-3 border border-slate-200 rounded shadow-sm cursor-pointer relative group';
                         
+                        // Next stage logic for simplicity instead of drag drop
                         let nextActionHtml = '';
                         if(stage.id === '지원예정') {
-                            nextActionHtml = `<button onclick="window.app.moveCard('${card.id}', '서류제출')" class="absolute top-2 right-2 text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition shadow-sm">제출 ➡</button>`;
+                            nextActionHtml = `<button onclick="app.moveCard(${card.id}, '서류제출')" class="absolute top-2 right-2 text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">제출 ➡</button>`;
                         } else if(stage.id === '서류제출') {
-                            nextActionHtml = `<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex space-x-1"><button onclick="window.app.moveCard('${card.id}', '서류합격')" class="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded shadow-sm">합격</button><button onclick="window.app.moveCard('${card.id}', '서류불합격')" class="text-xs bg-rose-50 text-rose-600 px-2 py-1 rounded shadow-sm">탈락</button></div>`;
+                            nextActionHtml = `<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex space-x-1"><button onclick="app.moveCard(${card.id}, '서류합격')" class="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded">합격</button><button onclick="app.moveCard(${card.id}, '서류불합격')" class="text-xs bg-rose-50 text-rose-600 px-2 py-1 rounded">탈락</button></div>`;
                         } else if(stage.id === '서류합격') {
-                            nextActionHtml = `<button onclick="window.app.moveCard('${card.id}', '면접진행')" class="absolute top-2 right-2 text-xs bg-orange-50 text-orange-600 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition shadow-sm">면접 ➡</button>`;
+                            nextActionHtml = `<button onclick="app.moveCard(${card.id}, '면접진행')" class="absolute top-2 right-2 text-xs bg-orange-50 text-orange-600 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition">면접 ➡</button>`;
                         } else if(stage.id === '면접진행') {
-                            nextActionHtml = `<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex space-x-1"><button onclick="window.app.moveCard('${card.id}', '최종합격')" class="text-xs bg-green-50 text-green-600 px-2 py-1 rounded shadow-sm">합격 🏆</button><button onclick="window.app.moveCard('${card.id}', '면접불합격')" class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded shadow-sm">탈락</button></div>`;
+                            nextActionHtml = `<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex space-x-1"><button onclick="app.moveCard(${card.id}, '최종합격')" class="text-xs bg-green-50 text-green-600 px-2 py-1 rounded">합격 🏆</button><button onclick="app.moveCard(${card.id}, '면접불합격')" class="text-xs bg-red-50 text-red-600 px-2 py-1 rounded">탈락</button></div>`;
                         }
 
                         cardEl.innerHTML = `
@@ -860,7 +658,7 @@
                             <p class="text-xs text-slate-500 mb-2">${card.role}</p>
                             <div class="flex justify-between items-center text-[10px] text-slate-400">
                                 <span>생성일: ${card.date}</span>
-                                <span>📄 AI 문서 완료</span>
+                                <span>📄 문서 3개</span>
                             </div>
                         `;
                         cardList.appendChild(cardEl);
@@ -873,73 +671,104 @@
                     column.appendChild(cardList);
                     board.appendChild(column);
                 });
-            },
-
-            moveCard: async function(cardId, newStatus) {
-                if (!window.appState.userId) return;
-                try {
-                    await updateDoc(doc(db, 'artifacts', appId, 'users', window.appState.userId, 'applications', String(cardId)), {
-                        status: newStatus
-                    });
-                    // UI는 onSnapshot 리스너에 의해 자동으로 업데이트 됨
-                } catch(e) {
-                    console.error("Error updating DB status", e);
+                
+                // Update charts if they exist
+                if(app.chartsInitialized) {
+                    app.updateCharts();
                 }
             },
 
-            // --- Chart.js ---
-            initCharts: function() {
-                if(this.chartsInitialized) return;
-                Chart.defaults.font.family = "'Pretendard', sans-serif";
-                Chart.defaults.color = '#64748b';
+            moveCard: function(cardId, newStatus) {
+                const cardIndex = appState.kanbanData.findIndex(c => c.id === cardId);
+                if(cardIndex > -1) {
+                    appState.kanbanData[cardIndex].status = newStatus;
+                    app.renderKanban(); // Re-render whole board and charts
+                }
+            },
 
+            // --- Charts Logic ---
+            chartsInitialized: false,
+            statusChartInstance: null,
+            activityChartInstance: null,
+
+            initCharts: function() {
+                // Common styling options
+                Chart.defaults.font.family = "'Pretendard', sans-serif";
+                Chart.defaults.color = '#64748b'; // slate-500
+
+                // 1. Status Chart (Doughnut)
                 const ctxStatus = document.getElementById('statusChart').getContext('2d');
                 this.statusChartInstance = new Chart(ctxStatus, {
                     type: 'doughnut',
                     data: this.getStatusData(),
                     options: {
-                        responsive: true, maintainAspectRatio: false, cutout: '70%',
-                        plugins: { legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true } }, tooltip: { padding: 10, cornerRadius: 4 } }
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true } },
+                            tooltip: { padding: 10, cornerRadius: 4 }
+                        }
                     }
                 });
 
+                // 2. Activity Chart (Bar)
                 const ctxActivity = document.getElementById('activityChart').getContext('2d');
                 this.activityChartInstance = new Chart(ctxActivity, {
                     type: 'bar',
                     data: {
                         labels: ['월', '화', '수', '목', '금', '토', '일'],
                         datasets: [
-                            { label: '활동 지수', data: [0, 1, 0, 3, 2, 0, 1], backgroundColor: '#10b981', borderRadius: 4 },
-                            { label: '지원 횟수', data: [0, 0, 0, 1, 1, 0, 0], backgroundColor: '#cbd5e1', borderRadius: 4 }
+                            {
+                                label: 'AI 생성 문서 수',
+                                data: [2, 5, 1, 0, 8, 3, 4], // Mock trend data
+                                backgroundColor: '#10b981', // primary-500
+                                borderRadius: 4,
+                            },
+                            {
+                                label: '신규 지원',
+                                data: [0, 1, 0, 0, 2, 1, 1],
+                                backgroundColor: '#cbd5e1', // slate-300
+                                borderRadius: 4,
+                            }
                         ]
                     },
                     options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#f1f5f9' } }, x: { grid: { display: false } } },
-                        plugins: { legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } } }
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#f1f5f9' } },
+                            x: { grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } },
+                        }
                     }
                 });
+
                 this.chartsInitialized = true;
             },
 
             getStatusData: function() {
+                // Calculate counts from kanbanData
                 const counts = { '서류합격':0, '서류불합격':0, '최종합격':0, '면접불합격':0 };
-                window.appState.kanbanData.forEach(item => { if(counts[item.status] !== undefined) counts[item.status]++; });
+                appState.kanbanData.forEach(item => {
+                    if(counts[item.status] !== undefined) counts[item.status]++;
+                });
 
                 const finalPass = counts['최종합격'];
                 const finalFail = counts['서류불합격'] + counts['면접불합격'];
-
-                // 둘 다 0일 경우 빈 데이터 표시 방지
-                if(finalPass === 0 && finalFail === 0) {
-                    return { labels: ['데이터 없음'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'], borderWidth: 0 }] };
-                }
 
                 return {
                     labels: ['합격 (최종)', '불합격 (최종)'],
                     datasets: [{
                         data: [finalPass, finalFail],
-                        backgroundColor: ['#4ade80', '#f87171'],
-                        borderWidth: 0, hoverOffset: 4
+                        backgroundColor: [
+                            '#4ade80', // green-400 (최종합격)
+                            '#f87171'  // red-400 (불합격 통합)
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
                     }]
                 };
             },
@@ -952,8 +781,12 @@
             }
         };
 
-        // 앱 초기화 실행
-        window.app.init();
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            app.renderKanban();
+            app.initCharts(); // Initialize charts immediately since dashboard is default
+        });
+
     </script>
 </body>
 </html>
